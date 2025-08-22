@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import {
   LayoutDashboard,
   Users,
@@ -64,12 +64,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
-              <div className="flex h-16 items-center border-b px-6">
-                <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
-                  <Handshake className="h-6 w-6" />
-                  <span>SevaSahayak</span>
-                </Link>
-              </div>
+              <SheetHeader className="border-b">
+                <SheetTitle className="p-4">
+                  <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
+                    <Handshake className="h-6 w-6" />
+                    <span>SevaSahayak</span>
+                  </Link>
+                </SheetTitle>
+              </SheetHeader>
               <div className="py-2 px-4">{navLinks}</div>
             </SheetContent>
           </Sheet>
