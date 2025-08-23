@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { IndianRupee, ArrowDown, ArrowUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export default async function TransactionsPage() {
     const transactions = await getTransactions();
@@ -62,11 +63,11 @@ export default async function TransactionsPage() {
                             <TableHead>Date</TableHead>
                             <TableHead>Service / Transaction</TableHead>
                             <TableHead>Customer</TableHead>
-                            <TableHead className="text-right">Amount / Qty</TableHead>
-                            <TableHead className="text-right">Charge / Price</TableHead>
-                            <TableHead className="text-right">Cost</TableHead>
-                            <TableHead className="text-right">Fee</TableHead>
-                            <TableHead className="text-right">Profit</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Total Charge</TableHead>
+                            <TableHead className="text-right">Amount Paid</TableHead>
+                            <TableHead className="text-right">Pending</TableHead>
+                            <TableHead className="text-right">Realized Profit</TableHead>
                             <TableHead>Payment</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -81,17 +82,20 @@ export default async function TransactionsPage() {
                                         {tx.serviceName}
                                         {tx.cashTransactionType && (
                                             <span className={`text-xs ml-2 font-normal ${tx.cashTransactionType === 'DEPOSIT' ? 'text-green-600' : 'text-red-600'}`}>
-                                                ({tx.cashTransactionType})
+                                                ({tx.cashTransactionAmount?.toFixed(2)})
                                             </span>
                                         )}
                                     </TableCell>
                                     <TableCell>{tx.customerName || 'Walk-in'}</TableCell>
-                                    <TableCell className="text-right font-mono">
-                                      {tx.cashTransactionAmount ? `₹${tx.cashTransactionAmount.toFixed(2)}` : tx.qty}
+                                    <TableCell>
+                                        <Badge variant={tx.status === 'PAID' ? 'default' : 'destructive'} 
+                                            className={cn(tx.status === 'PAID' ? 'bg-green-500' : 'bg-yellow-500', 'text-white')}>
+                                            {tx.status}
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">₹{tx.price.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-mono text-red-500">₹{tx.cost.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-mono text-red-500">₹{tx.partnerFee.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono">₹{tx.totalCharge.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono text-blue-600">₹{tx.amountPaid.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600">₹{tx.pendingAmount.toFixed(2)}</TableCell>
                                     <TableCell className="text-right font-mono text-green-600 font-bold">₹{tx.profit.toFixed(2)}</TableCell>
                                      <TableCell>
                                         <Badge variant="outline">{tx.paymentMode}</Badge>

@@ -11,12 +11,14 @@ import {
   ArrowRightLeft,
   Menu,
   Handshake,
+  Clock,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/services', label: 'Services', icon: Briefcase },
+  { href: '/pending-work', label: 'Pending Work', icon: Clock },
   { href: '/transactions', label: 'Transactions', icon: ArrowRightLeft },
 ];
 

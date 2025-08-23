@@ -1,4 +1,4 @@
-import type { Customer, Service, ServiceTransaction } from './types';
+import type { Customer, Service, ServiceTransaction, TransactionStatus } from './types';
 
 // Mock data storage
 let customers: Customer[] = [
@@ -59,7 +59,11 @@ let serviceTransactions: ServiceTransaction[] = [
         price: 10,
         cost: 2,
         partnerFee: 0,
+        totalCharge: 20,
+        amountPaid: 20,
+        pendingAmount: 0,
         profit: 16,
+        status: 'PAID',
         paymentMode: 'CASH',
         customerId: 'cust_1',
         customerName: 'Amit Kumar',
@@ -73,7 +77,11 @@ let serviceTransactions: ServiceTransaction[] = [
         price: 30,
         cost: 0,
         partnerFee: 0,
+        totalCharge: 30,
+        amountPaid: 30,
+        pendingAmount: 0,
         profit: 30,
+        status: 'PAID',
         paymentMode: 'UPI',
         customerId: 'cust_2',
         customerName: 'Priya Sharma',
@@ -87,7 +95,11 @@ let serviceTransactions: ServiceTransaction[] = [
         price: 10, // This is the charge/fee
         cost: 0,
         partnerFee: 0,
+        totalCharge: 10,
+        amountPaid: 10,
+        pendingAmount: 0,
         profit: 10,
+        status: 'PAID',
         paymentMode: 'CASH',
         customerId: undefined,
         customerName: 'Walk-in Customer',
@@ -95,12 +107,26 @@ let serviceTransactions: ServiceTransaction[] = [
         cashTransactionAmount: 5000,
         cashTransactionType: 'DEPOSIT',
         cashTransactionBankName: 'State Bank of India',
+    },
+    {
+        id: 'txn_4',
+        serviceCode: 'AYUSHMAN_CARD',
+        serviceName: 'Ayushman Card',
+        qty: 1,
+        price: 50,
+        cost: 0,
+        partnerFee: 0,
+        totalCharge: 50,
+        amountPaid: 20,
+        pendingAmount: 30,
+        profit: 20, // Profit on paid amount: 20 (paid) / 50 (total) * 50 (total profit) = 20
+        status: 'PENDING',
+        paymentMode: 'CASH',
+        customerId: 'cust_1',
+        customerName: 'Amit Kumar',
+        createdAt: new Date(), // Today
     }
 ];
-
-// No longer need separate cashTransactions
-// let cashTransactions: CashTransaction[] = [];
-
 
 // Data access functions
 export async function getCustomers(): Promise<Customer[]> {
@@ -129,9 +155,12 @@ export async function getServiceByCode(code: string): Promise<Service | undefine
     return serviceCatalog.find(s => s.code === code);
 }
 
-export async function getTransactions(): Promise<ServiceTransaction[]> {
-    // This now correctly includes cash transaction fees as part of all transactions
-    return serviceTransactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+export async function getTransactions(status?: TransactionStatus): Promise<ServiceTransaction[]> {
+    let txs = serviceTransactions;
+    if (status) {
+        txs = txs.filter(tx => tx.status === status);
+    }
+    return txs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'>): Promise<ServiceTransaction> {
@@ -151,17 +180,19 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
     return newTransaction;
 }
 
-// No longer needed as separate functions
-// export async function getCashTransactions(): Promise<CashTransaction[]> {
-//     return [];
-// }
-// export async function addCashTransaction(data: Omit<CashTransaction, 'id' | 'createdAt'>): Promise<CashTransaction> {
-//     return {} as any;
-// }
-// export async function getCashTransactionStats() {
-//     return { totalDeposit: 0, totalWithdrawal: 0, netBalance: 0 };
-// }
-
+export async function updateTransactionStatus(transactionId: string, newStatus: TransactionStatus): Promise<ServiceTransaction | undefined> {
+    const transaction = serviceTransactions.find(t => t.id === transactionId);
+    if (transaction) {
+        transaction.status = newStatus;
+        if (newStatus === 'PAID') {
+            const potentialProfit = transaction.qty * (transaction.price - transaction.cost - transaction.partnerFee);
+            transaction.amountPaid = transaction.totalCharge;
+            transaction.pendingAmount = 0;
+            transaction.profit = potentialProfit;
+        }
+    }
+    return transaction;
+}
 
 export async function getDashboardStats() {
     const today = new Date();
@@ -169,17 +200,22 @@ export async function getDashboardStats() {
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const dailyServiceTransactions = serviceTransactions.filter(t => t.createdAt >= today);
-    const monthlyServiceTransactions = serviceTransactions.filter(t => t.createdAt >= startOfMonth);
+    // Only consider fully PAID transactions for profit calculations
+    const paidTransactions = serviceTransactions.filter(t => t.status === 'PAID');
+    const dailyPaidTransactions = paidTransactions.filter(t => t.createdAt >= today);
+    const monthlyPaidTransactions = paidTransactions.filter(t => t.createdAt >= startOfMonth);
 
-    const dailyProfit = dailyServiceTransactions.reduce((sum, t) => sum + t.profit, 0);
-    const monthlyProfit = monthlyServiceTransactions.reduce((sum, t) => sum + t.profit, 0);
+    const dailyProfit = dailyPaidTransactions.reduce((sum, t) => sum + t.profit, 0);
+    const monthlyProfit = monthlyPaidTransactions.reduce((sum, t) => sum + t.profit, 0);
+    
+    const totalPendingAmount = serviceTransactions
+        .filter(t => t.status === 'PENDING')
+        .reduce((sum, t) => sum + t.pendingAmount, 0);
 
     const totalCustomers = customers.length;
-    const servicesToday = dailyServiceTransactions.length;
+    const servicesToday = serviceTransactions.filter(t => t.createdAt >= today).length;
     
-    // Calculate cash flow from the main transaction list
-    const dailyCashTransactions = dailyServiceTransactions.filter(t => t.cashTransactionAmount && t.cashTransactionType);
+    const dailyCashTransactions = serviceTransactions.filter(t => t.createdAt >= today && t.cashTransactionAmount && t.cashTransactionType);
     const dailyDeposit = dailyCashTransactions
         .filter(t => t.cashTransactionType === 'DEPOSIT')
         .reduce((sum, t) => sum + (t.cashTransactionAmount || 0), 0);
@@ -187,7 +223,6 @@ export async function getDashboardStats() {
         .filter(t => t.cashTransactionType === 'WITHDRAWAL')
         .reduce((sum, t) => sum + (t.cashTransactionAmount || 0), 0);
     const dailyNetCash = dailyDeposit - dailyWithdrawal;
-
 
     return {
         dailyProfit,
@@ -197,5 +232,6 @@ export async function getDashboardStats() {
         dailyDeposit,
         dailyWithdrawal,
         dailyNetCash,
+        totalPendingAmount,
     };
 }

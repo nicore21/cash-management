@@ -1,8 +1,8 @@
 'use server';
 
 import { z } from 'zod';
-import { addCustomer, addTransaction, getServiceByCode } from './data';
-import type { Customer, ServiceTransaction } from './types';
+import { addCustomer, addTransaction, getServiceByCode, updateTransactionStatus as dbUpdateTransactionStatus } from './data';
+import type { Customer, ServiceTransaction, TransactionStatus } from './types';
 import { revalidatePath } from 'next/cache';
 
 const CustomerSchema = z.object({
@@ -38,11 +38,16 @@ const ServiceTransactionSchema = z.object({
   price: z.coerce.number().min(0, "Price/Fee must be non-negative."),
   cost: z.coerce.number().min(0, "Cost must be non-negative."),
   partnerFee: z.coerce.number().min(0, "Partner fee must be non-negative."),
+  totalCharge: z.coerce.number().min(0, "Total Charge must be non-negative."),
+  amountPaid: z.coerce.number().min(0, "Amount Paid must be non-negative."),
   paymentMode: z.enum(['CASH', 'UPI', 'BANK']),
   notes: z.string().optional(),
   // Fields for cash transactions
   cashTransactionAmount: z.coerce.number().optional(),
   cashTransactionBankName: z.string().optional(),
+}).refine(data => data.amountPaid <= data.totalCharge, {
+    message: "Amount paid cannot be greater than total charge.",
+    path: ["amountPaid"],
 });
 
 export async function createServiceTransaction(formData: FormData): Promise<{ success: boolean; message: string; data?: ServiceTransaction }> {
@@ -51,10 +56,11 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
 
     if (!validatedFields.success) {
         console.error(validatedFields.error.flatten().fieldErrors);
-        return { success: false, message: "Invalid form data." };
+        const firstError = Object.values(validatedFields.error.flatten().fieldErrors)[0]?.[0] ?? "Invalid form data.";
+        return { success: false, message: firstError };
     }
     
-    const { serviceCode, qty, price, cost, partnerFee, customerId, paymentMode, notes, cashTransactionAmount, cashTransactionBankName } = validatedFields.data;
+    const { serviceCode, qty, price, cost, partnerFee, customerId, paymentMode, notes, cashTransactionAmount, cashTransactionBankName, totalCharge, amountPaid } = validatedFields.data;
 
     const service = await getServiceByCode(serviceCode);
     if (!service) {
@@ -69,18 +75,26 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
         return { success: false, message: "Please enter a valid bank name." };
     }
 
-
     try {
-        // For cash services, profit is the fee (price). For other services, it's the standard calculation.
-        const profit = isCashService ? price : qty * (price - cost - partnerFee);
+        const pendingAmount = totalCharge - amountPaid;
+        const status: TransactionStatus = pendingAmount > 0 ? 'PENDING' : 'PAID';
+        
+        const potentialProfit = isCashService ? price : qty * (price - cost - partnerFee);
+
+        // Profit is realized based on the proportion of the amount paid
+        const profit = totalCharge > 0 ? (amountPaid / totalCharge) * potentialProfit : potentialProfit;
 
         const transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'> = {
             serviceCode,
             qty: isCashService ? 1 : qty,
-            price, // This is the fee for cash tx
+            price,
             cost: isCashService ? 0 : cost,
             partnerFee: isCashService ? 0 : partnerFee,
+            totalCharge,
+            amountPaid,
+            pendingAmount,
             profit,
+            status,
             customerId,
             paymentMode,
             notes,
@@ -90,11 +104,18 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
             transactionData.cashTransactionAmount = cashTransactionAmount;
             transactionData.cashTransactionType = service.code === 'CASH_DEPOSIT' ? 'DEPOSIT' : 'WITHDRAWAL';
             transactionData.cashTransactionBankName = cashTransactionBankName;
+            // For cash services, total charge is just the fee itself
+            transactionData.totalCharge = price;
+            transactionData.amountPaid = price;
+            transactionData.pendingAmount = 0;
+            transactionData.status = 'PAID';
+            transactionData.profit = price;
         }
 
         const newTransaction = await addTransaction(transactionData);
         revalidatePath('/services');
         revalidatePath('/transactions');
+        revalidatePath('/pending-work');
         revalidatePath('/');
         return { success: true, message: "Transaction logged successfully.", data: newTransaction };
     } catch (error) {
@@ -103,6 +124,15 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
     }
 }
 
-// No longer need createCashTransaction as it's merged
-// const CashTransactionSchema = z.object({ ... });
-// export async function createCashTransaction(...) { ... }
+export async function updateTransactionStatusAction(transactionId: string, newStatus: TransactionStatus): Promise<{ success: boolean; message: string; }> {
+    try {
+        await dbUpdateTransactionStatus(transactionId, newStatus);
+        revalidatePath('/pending-work');
+        revalidatePath('/transactions');
+        revalidatePath('/');
+        return { success: true, message: "Transaction status updated." };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update status.";
+        return { success: false, message };
+    }
+}

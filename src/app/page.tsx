@@ -1,6 +1,6 @@
 import { getDashboardStats } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { IndianRupee, Users, Briefcase, ArrowUp, ArrowDown, Scale } from 'lucide-react';
+import { IndianRupee, Users, Briefcase, ArrowUp, ArrowDown, Scale, AlertCircle } from 'lucide-react';
 
 export default async function DashboardPage() {
   const stats = await getDashboardStats();
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="text-3xl font-bold text-green-900">₹{stats.dailyProfit.toFixed(2)}</div>
-                <p className="text-xs text-green-700">Total service and transaction fee earnings for today</p>
+                <p className="text-xs text-green-700">Profit from all paid transactions today</p>
                 </CardContent>
             </Card>
             <Card className="bg-green-100 border-green-200 shadow-sm hover:shadow-md transition-shadow">
@@ -26,27 +26,27 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="text-3xl font-bold text-green-900">₹{stats.monthlyProfit.toFixed(2)}</div>
-                <p className="text-xs text-green-700">Total service and transaction fee earnings this month</p>
+                <p className="text-xs text-green-700">Profit from all paid transactions this month</p>
+                </CardContent>
+            </Card>
+            <Card className="bg-yellow-100 border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-yellow-800">Total Pending Amount</CardTitle>
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                </CardHeader>
+                <CardContent>
+                <div className="text-3xl font-bold text-yellow-900">₹{stats.totalPendingAmount.toFixed(2)}</div>
+                <p className="text-xs text-yellow-700">From all services with pending payments</p>
                 </CardContent>
             </Card>
             <Card className="bg-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800">Services Today</CardTitle>
-                <Briefcase className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-sm font-medium text-blue-800">Total Customers</CardTitle>
+                <Users className="h-5 w-5 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                <div className="text-3xl font-bold text-blue-900">+{stats.servicesToday}</div>
-                <p className="text-xs text-blue-700">Services & transactions today</p>
-                </CardContent>
-            </Card>
-            <Card className="bg-orange-100 border-orange-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-orange-800">Total Customers</CardTitle>
-                <Users className="h-5 w-5 text-orange-600" />
-                </CardHeader>
-                <CardContent>
-                <div className="text-3xl font-bold text-orange-900">{stats.totalCustomers}</div>
-                <p className="text-xs text-orange-700">Total customers registered</p>
+                <div className="text-3xl font-bold text-blue-900">{stats.totalCustomers}</div>
+                <p className="text-xs text-blue-700">Total customers registered</p>
                 </CardContent>
             </Card>
         </div>

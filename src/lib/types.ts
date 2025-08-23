@@ -22,15 +22,24 @@ export interface Service {
   createdAt: Date;
 }
 
+export type TransactionStatus = 'PAID' | 'PENDING';
+
 export interface ServiceTransaction {
   id: string;
   serviceCode: string;
   serviceName: string; // denormalized for easy display
   qty: number;
-  price: number; // For services, this is the charge. For cash tx, this is the fee.
+  price: number; // For services, this is the per-unit charge. For cash tx, this is the fee.
   cost: number;
   partnerFee: number;
-  profit: number;
+  
+  totalCharge: number;
+  amountPaid: number;
+  pendingAmount: number;
+  
+  profit: number; // This will now be calculated based on amountPaid
+  status: TransactionStatus;
+
   paymentMode: 'CASH' | 'UPI' | 'BANK';
   notes?: string;
   customerId?: string;
@@ -41,14 +50,3 @@ export interface ServiceTransaction {
   cashTransactionType?: 'DEPOSIT' | 'WITHDRAWAL';
   cashTransactionBankName?: string;
 }
-
-// The old CashTransaction is no longer needed, as it's merged into ServiceTransaction
-// export interface CashTransaction {
-//   id: string;
-//   customerName: string;
-//   mobileNumber: string;
-//   bankName: string;
-//   amount: number;
-//   type: 'DEPOSIT' | 'WITHDRAWAL';
-//   createdAt: Date;
-// }
