@@ -1,200 +1,185 @@
+import { db } from './firebase';
+import { collection, getDocs, getDoc, doc, addDoc, updateDoc, query, where, orderBy, Timestamp, writeBatch } from "firebase/firestore";
 import type { Customer, Service, ServiceTransaction, TransactionStatus } from './types';
-
-// Mock data storage
-let customers: Customer[] = [
-    {
-        id: 'cust_1',
-        name: 'Amit Kumar',
-        mobileNumber: '9876543210',
-        address: '123, Main St, Delhi',
-        bankName: 'State Bank of India',
-        accountNumber: '12345678901',
-        ifscCode: 'SBIN0001234',
-        createdAt: new Date('2024-07-20T10:00:00Z'),
-    },
-    {
-        id: 'cust_2',
-        name: 'Priya Sharma',
-        mobileNumber: '8765432109',
-        address: '456, Park Avenue, Mumbai',
-        bankName: 'HDFC Bank',
-        accountNumber: '09876543210',
-        ifscCode: 'HDFC0000456',
-        createdAt: new Date('2024-07-21T11:30:00Z'),
-    },
-];
-
-const now = new Date();
-const serviceCatalog: Service[] = [
-  // New Cash Transaction services
-  { code: 'CASH_DEPOSIT', name: 'Cash Deposit', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'CASH_WITHDRAWAL', name: 'Cash Withdrawal', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  
-  { code: 'AIRTEL_ACCOUNT', name: 'Airtel Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'FINO_ACCOUNT', name: 'Fino Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'KOTAK_ACCOUNT', name: 'Kotak Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'AADHAAR_PRINT', name: 'Aadhaar Print', category: 'PRINT', defaultPrice: 10, defaultCost: 2, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'AYUSHMAN_CARD', name: 'Ayushman Card', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'ESHRAM_CARD', name: 'eShram Card', category: 'G2C', defaultPrice: 20, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'SAMAGRAH', name: 'Samagrah', category: 'G2C', defaultPrice: 20, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'KYC', name: 'KYC', category: 'BANKING', defaultPrice: 30, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'LIFE_CERT', name: 'Life Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'PRINT_BW', name: 'Print Out B/W (per page)', category: 'PRINT', defaultPrice: 2, defaultCost: 1, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'PRINT_COLOR', name: 'Print Out Color (per page)', category: 'PRINT', defaultPrice: 10, defaultCost: 5, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'LAMINATION', name: 'Lamination', category: 'DOC', defaultPrice: 30, defaultCost: 15, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'INCOME_CERT', name: 'Income Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'DOMESTIC_CERT', name: 'Domestic Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'RESUME', name: 'Resume Making', category: 'DOC', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'POLICE_VERIFICATION', name: 'Police Verification', category: 'G2C', defaultPrice: 100, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'PAN_CARD', name: 'PAN Card', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-  { code: 'OTHER', name: 'Other', category: 'OTHER', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
-];
-
-let serviceTransactions: ServiceTransaction[] = [
-    {
-        id: 'txn_1',
-        serviceCode: 'AADHAAR_PRINT',
-        serviceName: 'Aadhaar Print',
-        qty: 2,
-        price: 10,
-        cost: 2,
-        partnerFee: 0,
-        totalCharge: 20,
-        amountPaid: 20,
-        pendingAmount: 0,
-        profit: 16,
-        status: 'PAID',
-        paymentMode: 'CASH',
-        customerId: 'cust_1',
-        customerName: 'Amit Kumar',
-        customerMobile: '9876543210',
-        createdAt: new Date('2024-07-22T09:15:00Z'),
-    },
-    {
-        id: 'txn_2',
-        serviceCode: 'KYC',
-        serviceName: 'KYC',
-        qty: 1,
-        price: 30,
-        cost: 0,
-        partnerFee: 0,
-        totalCharge: 30,
-        amountPaid: 30,
-        pendingAmount: 0,
-        profit: 30,
-        status: 'PAID',
-        paymentMode: 'UPI',
-        customerId: 'cust_2',
-        customerName: 'Priya Sharma',
-        customerMobile: '8765432109',
-        createdAt: new Date(), // Today
-    },
-    {
-        id: 'txn_3',
-        serviceCode: 'CASH_DEPOSIT',
-        serviceName: 'Cash Deposit',
-        qty: 1,
-        price: 10, // This is the charge/fee
-        cost: 0,
-        partnerFee: 0,
-        totalCharge: 10,
-        amountPaid: 10,
-        pendingAmount: 0,
-        profit: 10,
-        status: 'PAID',
-        paymentMode: 'CASH',
-        customerId: undefined,
-        customerName: 'Walk-in Customer',
-        createdAt: new Date(), // Today
-        cashTransactionAmount: 5000,
-        cashTransactionType: 'DEPOSIT',
-        cashTransactionBankName: 'State Bank of India',
-    },
-    {
-        id: 'txn_4',
-        serviceCode: 'AYUSHMAN_CARD',
-        serviceName: 'Ayushman Card',
-        qty: 1,
-        price: 50,
-        cost: 0,
-        partnerFee: 0,
-        totalCharge: 50,
-        amountPaid: 20,
-        pendingAmount: 30,
-        profit: 20, // Profit on paid amount: 20 (paid) / 50 (total) * 50 (total profit) = 20
-        status: 'PENDING',
-        paymentMode: 'CASH',
-        customerId: 'cust_1',
-        customerName: 'Amit Kumar',
-        customerMobile: '9876543210',
-        createdAt: new Date(), // Today
-    }
-];
 
 // Data access functions
 export async function getCustomers(): Promise<Customer[]> {
-    return customers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const customersCol = collection(db, 'customers');
+    const customerSnapshot = await getDocs(query(customersCol, orderBy('createdAt', 'desc')));
+    const customerList = customerSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as Customer;
+    });
+    return customerList;
 }
 
 export async function getCustomerById(id: string): Promise<Customer | undefined> {
-    return customers.find(c => c.id === id);
+    const customerRef = doc(db, 'customers', id);
+    const customerSnap = await getDoc(customerRef);
+    if (customerSnap.exists()) {
+        const data = customerSnap.data();
+        return {
+            id: customerSnap.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as Customer;
+    }
+    return undefined;
 }
 
 export async function addCustomer(customerData: Omit<Customer, 'id' | 'createdAt'>): Promise<Customer> {
-    const newCustomer: Customer = {
+    const customersCol = collection(db, 'customers');
+    const docRef = await addDoc(customersCol, {
         ...customerData,
-        id: `cust_${Date.now()}`,
+        createdAt: Timestamp.now(),
+    });
+    return {
+        ...customerData,
+        id: docRef.id,
         createdAt: new Date(),
     };
-    customers.push(newCustomer);
-    return newCustomer;
 }
 
+
+const serviceCatalog: Omit<Service, 'code' | 'createdAt' | 'active'>[] = [
+    { name: 'Cash Deposit', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Cash Withdrawal', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Airtel Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Fino Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Kotak Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Aadhaar Print', category: 'PRINT', defaultPrice: 10, defaultCost: 2, defaultPartnerFee: 0 },
+    { name: 'Ayushman Card', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'eShram Card', category: 'G2C', defaultPrice: 20, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Samagrah', category: 'G2C', defaultPrice: 20, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'KYC', category: 'BANKING', defaultPrice: 30, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Life Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Print Out B/W (per page)', category: 'PRINT', defaultPrice: 2, defaultCost: 1, defaultPartnerFee: 0 },
+    { name: 'Print Out Color (per page)', category: 'PRINT', defaultPrice: 10, defaultCost: 5, defaultPartnerFee: 0 },
+    { name: 'Lamination', category: 'DOC', defaultPrice: 30, defaultCost: 15, defaultPartnerFee: 0 },
+    { name: 'Income Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Domestic Certificate', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Resume Making', category: 'DOC', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Police Verification', category: 'G2C', defaultPrice: 100, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'PAN Card', category: 'G2C', defaultPrice: 50, defaultCost: 0, defaultPartnerFee: 0 },
+    { name: 'Other', category: 'OTHER', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0 },
+];
+
+async function seedServices() {
+    const servicesCol = collection(db, 'services');
+    const snapshot = await getDocs(servicesCol);
+    if (snapshot.empty) {
+        console.log("Seeding services...");
+        const batch = writeBatch(db);
+        serviceCatalog.forEach(service => {
+            const code = service.name.toUpperCase().replace(/ /g, '_').replace(/\//g, '').replace(/\(/g, '').replace(/\)/g, '');
+            const docRef = doc(db, 'services', code);
+            batch.set(docRef, { 
+                ...service, 
+                code, 
+                active: true, 
+                createdAt: Timestamp.now() 
+            });
+        });
+        await batch.commit();
+        console.log("Services seeded.");
+    }
+}
+
+
 export async function getServices(): Promise<Service[]> {
-    return serviceCatalog.filter(s => s.active);
+    await seedServices();
+    const servicesCol = collection(db, 'services');
+    const serviceSnapshot = await getDocs(query(servicesCol, where('active', '==', true)));
+    const serviceList = serviceSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as Service;
+    });
+    return serviceList;
 }
 
 export async function getServiceByCode(code: string): Promise<Service | undefined> {
-    return serviceCatalog.find(s => s.code === code);
+    const serviceRef = doc(db, 'services', code);
+    const serviceSnap = await getDoc(serviceRef);
+    if (serviceSnap.exists()) {
+        const data = serviceSnap.data();
+        return {
+            ...data,
+            id: serviceSnap.id,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as Service;
+    }
+    return undefined;
 }
 
 export async function getTransactions(status?: TransactionStatus): Promise<ServiceTransaction[]> {
-    let txs = serviceTransactions;
+    const transactionsCol = collection(db, 'transactions');
+    let q = query(transactionsCol, orderBy('createdAt', 'desc'));
     if (status) {
-        txs = txs.filter(tx => tx.status === status);
+        q = query(transactionsCol, where('status', '==', status), orderBy('createdAt', 'desc'));
     }
-    return txs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const transactionSnapshot = await getDocs(q);
+    const transactionList = transactionSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as ServiceTransaction;
+    });
+    return transactionList;
 }
 
-export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'customerMobile' | 'serviceName'>, customer?: Customer): Promise<ServiceTransaction> {
+export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt'>, customer?: Customer): Promise<ServiceTransaction> {
     const service = await getServiceByCode(transactionData.serviceCode);
 
     if (!service) throw new Error('Service not found');
-
-    const newTransaction: ServiceTransaction = {
+    
+    const docRef = await addDoc(collection(db, 'transactions'), {
         ...transactionData,
-        id: `txn_${Date.now()}`,
+        serviceName: service.name,
         customerName: customer?.name || (transactionData.serviceCode.startsWith('CASH_') ? 'Walk-in Customer' : undefined),
         customerMobile: customer?.mobileNumber,
+        createdAt: Timestamp.now(),
+    });
+
+    return {
+        ...transactionData,
+        id: docRef.id,
         serviceName: service.name,
+        customerName: customer?.name || (transactionData.serviceCode.startsWith('CASH_') ? 'Walk-in Customer' : undefined),
+        customerMobile: customer?.mobileNumber,
         createdAt: new Date(),
     };
-    serviceTransactions.push(newTransaction);
-    return newTransaction;
 }
 
-export async function updateTransactionStatus(transactionId: string, newStatus: TransactionStatus): Promise<ServiceTransaction | undefined> {
-    const transaction = serviceTransactions.find(t => t.id === transactionId);
-    if (transaction) {
-        transaction.status = newStatus;
+
+export async function updateTransactionStatus(transactionId: string, newStatus: TransactionStatus): Promise<void> {
+    const transactionRef = doc(db, 'transactions', transactionId);
+    const transactionSnap = await getDoc(transactionRef);
+
+    if (transactionSnap.exists()) {
+        const transaction = transactionSnap.data() as ServiceTransaction;
+        const updates: Partial<ServiceTransaction> = { status: newStatus };
+
         if (newStatus === 'PAID') {
             const potentialProfit = transaction.qty * (transaction.price - transaction.cost - transaction.partnerFee);
-            transaction.amountPaid = transaction.totalCharge;
-            transaction.pendingAmount = 0;
-            transaction.profit = potentialProfit;
+            updates.amountPaid = transaction.totalCharge;
+            updates.pendingAmount = 0;
+            updates.profit = potentialProfit;
         }
+        
+        await updateDoc(transactionRef, updates);
+    } else {
+        throw new Error("Transaction not found");
     }
-    return transaction;
 }
 
 export async function getDashboardStats() {
@@ -202,23 +187,25 @@ export async function getDashboardStats() {
     today.setHours(0, 0, 0, 0);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const transactions = await getTransactions(); // Fetch all transactions once
 
     // Only consider fully PAID transactions for profit calculations
-    const paidTransactions = serviceTransactions.filter(t => t.status === 'PAID');
+    const paidTransactions = transactions.filter(t => t.status === 'PAID');
     const dailyPaidTransactions = paidTransactions.filter(t => t.createdAt >= today);
     const monthlyPaidTransactions = paidTransactions.filter(t => t.createdAt >= startOfMonth);
 
     const dailyProfit = dailyPaidTransactions.reduce((sum, t) => sum + t.profit, 0);
     const monthlyProfit = monthlyPaidTransactions.reduce((sum, t) => sum + t.profit, 0);
     
-    const totalPendingAmount = serviceTransactions
+    const totalPendingAmount = transactions
         .filter(t => t.status === 'PENDING')
         .reduce((sum, t) => sum + t.pendingAmount, 0);
 
+    const customers = await getCustomers();
     const totalCustomers = customers.length;
-    const servicesToday = serviceTransactions.filter(t => t.createdAt >= today).length;
     
-    const dailyCashTransactions = serviceTransactions.filter(t => t.createdAt >= today && t.cashTransactionAmount && t.cashTransactionType);
+    const dailyCashTransactions = transactions.filter(t => t.createdAt >= today && t.cashTransactionAmount && t.cashTransactionType);
     const dailyDeposit = dailyCashTransactions
         .filter(t => t.cashTransactionType === 'DEPOSIT')
         .reduce((sum, t) => sum + (t.cashTransactionAmount || 0), 0);
@@ -231,7 +218,7 @@ export async function getDashboardStats() {
         dailyProfit,
         monthlyProfit,
         totalCustomers,
-        servicesToday,
+        servicesToday: transactions.filter(t => t.createdAt >= today).length,
         dailyDeposit,
         dailyWithdrawal,
         dailyNetCash,
