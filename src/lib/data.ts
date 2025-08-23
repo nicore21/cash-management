@@ -67,6 +67,7 @@ let serviceTransactions: ServiceTransaction[] = [
         paymentMode: 'CASH',
         customerId: 'cust_1',
         customerName: 'Amit Kumar',
+        customerMobile: '9876543210',
         createdAt: new Date('2024-07-22T09:15:00Z'),
     },
     {
@@ -85,6 +86,7 @@ let serviceTransactions: ServiceTransaction[] = [
         paymentMode: 'UPI',
         customerId: 'cust_2',
         customerName: 'Priya Sharma',
+        customerMobile: '8765432109',
         createdAt: new Date(), // Today
     },
     {
@@ -124,6 +126,7 @@ let serviceTransactions: ServiceTransaction[] = [
         paymentMode: 'CASH',
         customerId: 'cust_1',
         customerName: 'Amit Kumar',
+        customerMobile: '9876543210',
         createdAt: new Date(), // Today
     }
 ];
@@ -163,8 +166,7 @@ export async function getTransactions(status?: TransactionStatus): Promise<Servi
     return txs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
-export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'>): Promise<ServiceTransaction> {
-    const customer = transactionData.customerId ? await getCustomerById(transactionData.customerId) : undefined;
+export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'customerMobile' | 'serviceName'>, customer?: Customer): Promise<ServiceTransaction> {
     const service = await getServiceByCode(transactionData.serviceCode);
 
     if (!service) throw new Error('Service not found');
@@ -173,6 +175,7 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
         ...transactionData,
         id: `txn_${Date.now()}`,
         customerName: customer?.name || (transactionData.serviceCode.startsWith('CASH_') ? 'Walk-in Customer' : undefined),
+        customerMobile: customer?.mobileNumber,
         serviceName: service.name,
         createdAt: new Date(),
     };

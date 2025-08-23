@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { addCustomer, addTransaction, getServiceByCode, updateTransactionStatus as dbUpdateTransactionStatus } from './data';
+import { addCustomer, addTransaction, getServiceByCode, updateTransactionStatus as dbUpdateTransactionStatus, getCustomerById } from './data';
 import type { Customer, ServiceTransaction, TransactionStatus } from './types';
 import { revalidatePath } from 'next/cache';
 
@@ -67,6 +67,9 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
         return { success: false, message: "Invalid service selected." };
     }
 
+    const customer = customerId ? await getCustomerById(customerId) : undefined;
+
+
     const isCashService = service.code.startsWith('CASH_');
     if (isCashService && (!cashTransactionAmount || cashTransactionAmount <= 0)) {
         return { success: false, message: "Please enter a valid transaction amount." };
@@ -84,7 +87,7 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
         // Profit is realized based on the proportion of the amount paid
         const profit = totalCharge > 0 ? (amountPaid / totalCharge) * potentialProfit : potentialProfit;
 
-        const transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'> = {
+        const transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'customerMobile' |'serviceName'> = {
             serviceCode,
             qty: isCashService ? 1 : qty,
             price,
@@ -112,7 +115,7 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
             transactionData.profit = price;
         }
 
-        const newTransaction = await addTransaction(transactionData);
+        const newTransaction = await addTransaction(transactionData, customer);
         revalidatePath('/services');
         revalidatePath('/transactions');
         revalidatePath('/pending-work');

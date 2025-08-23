@@ -44,6 +44,7 @@ export interface ServiceTransaction {
   notes?: string;
   customerId?: string;
   customerName?: string; // denormalized
+  customerMobile?: string; // denormalized
   createdAt: Date;
   // Specific to cash transactions
   cashTransactionAmount?: number;
