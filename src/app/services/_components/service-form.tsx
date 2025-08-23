@@ -63,12 +63,15 @@ export default function ServiceForm({ customers, services, selectedService }: Se
   const isCashService = useMemo(() => formValues.serviceCode?.startsWith('CASH_'), [formValues.serviceCode]);
 
   const profit = useMemo(() => {
-    const { qty, price, cost, partnerFee } = formValues;
-    if (isNaN(price)) return 0;
+    const qty = Number(formValues.qty) || 0;
+    const price = Number(formValues.price) || 0;
+    const cost = Number(formValues.cost) || 0;
+    const partnerFee = Number(formValues.partnerFee) || 0;
+    
     if (isCashService) {
         return price; // For cash services, profit is simply the fee (price)
     }
-    if (isNaN(qty) || isNaN(cost) || isNaN(partnerFee)) return 0;
+    
     return qty * (price - cost - partnerFee);
   }, [formValues, isCashService]);
 
