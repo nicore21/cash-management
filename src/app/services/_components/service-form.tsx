@@ -42,7 +42,7 @@ interface ServiceFormProps {
     selectedService: Service | null;
 }
 
-const ANONYMOUS_CUSTOMER_VALUE = '_anonymous_';
+const ANONYMOUS_CUSTOMER_VALUE = 'NA';
 
 export default function ServiceForm({ customers, services, selectedService }: ServiceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,7 +116,7 @@ export default function ServiceForm({ customers, services, selectedService }: Se
 
   useEffect(() => {
     resetFormFields(selectedService);
-  }, [selectedService]);
+  }, [selectedService, form]);
 
   const handleServiceChange = (serviceCode: string) => {
     const service = services.find(s => s.code === serviceCode);
@@ -129,12 +129,8 @@ export default function ServiceForm({ customers, services, selectedService }: Se
     setIsSubmitting(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-          if (key === 'customerId' && value === ANONYMOUS_CUSTOMER_VALUE) {
-            // Don't append customerId if it's the anonymous placeholder
-          } else {
-             formData.append(String(key), String(value));
-          }
+      if (value !== undefined && value !== null && value !== '') {
+         formData.append(String(key), String(value));
       }
     });
 

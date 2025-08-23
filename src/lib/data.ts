@@ -140,7 +140,7 @@ export async function getTransactions(status?: TransactionStatus): Promise<Servi
     return transactionList;
 }
 
-export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'serviceName' | 'customerName' | 'customerMobile'>, customer?: Customer): Promise<ServiceTransaction> {
+export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'serviceName'>): Promise<ServiceTransaction> {
     const service = await getServiceByCode(transactionData.serviceCode);
 
     if (!service) throw new Error('Service not found');
@@ -148,8 +148,6 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
     const docRef = await addDoc(collection(db, 'transactions'), {
         ...transactionData,
         serviceName: service.name,
-        customerName: customer?.name,
-        customerMobile: customer?.mobileNumber,
         createdAt: Timestamp.now(),
     });
 
