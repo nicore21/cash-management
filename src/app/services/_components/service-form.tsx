@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -35,6 +36,8 @@ interface ServiceFormProps {
     selectedService: Service | null;
 }
 
+const ANONYMOUS_CUSTOMER_VALUE = '_anonymous_';
+
 export default function ServiceForm({ customers, services, selectedService }: ServiceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -48,6 +51,7 @@ export default function ServiceForm({ customers, services, selectedService }: Se
       partnerFee: 0,
       paymentMode: 'CASH',
       notes: '',
+      customerId: ANONYMOUS_CUSTOMER_VALUE,
     },
   });
   
@@ -91,7 +95,11 @@ export default function ServiceForm({ customers, services, selectedService }: Se
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined) {
-        formData.append(String(key), String(value));
+          if (key === 'customerId' && value === ANONYMOUS_CUSTOMER_VALUE) {
+            // Don't append customerId if it's the anonymous placeholder
+          } else {
+             formData.append(String(key), String(value));
+          }
       }
     });
 
@@ -104,7 +112,7 @@ export default function ServiceForm({ customers, services, selectedService }: Se
       });
       form.reset({
         ...form.getValues(),
-        customerId: '',
+        customerId: ANONYMOUS_CUSTOMER_VALUE,
         notes: '',
         qty: 1,
       });
@@ -156,14 +164,14 @@ export default function ServiceForm({ customers, services, selectedService }: Se
           render={({ field }) => (
             <FormItem>
               <FormLabel>Customer (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+              <Select onValueChange={field.onChange} value={field.value ?? ANONYMOUS_CUSTOMER_VALUE}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                    <SelectItem value="">Anonymous / Walk-in</SelectItem>
+                    <SelectItem value={ANONYMOUS_CUSTOMER_VALUE}>Anonymous / Walk-in</SelectItem>
                   {customers.map(customer => (
                     <SelectItem key={customer.id} value={customer.id}>{customer.name} - {customer.mobileNumber}</SelectItem>
                   ))}
