@@ -68,12 +68,9 @@ export default function ServiceForm({ customers, services, selectedService }: Se
     const cost = Number(formValues.cost) || 0;
     const partnerFee = Number(formValues.partnerFee) || 0;
     
-    if (isCashService) {
-        return price; // For cash services, profit is simply the fee (price)
-    }
-    
-    return qty * (price - cost - partnerFee);
-  }, [formValues, isCashService]);
+    // For all services, profit is simply the fee (price)
+    return price;
+  }, [formValues]);
 
   const resetFormFields = (service: Service | null) => {
     form.reset({
