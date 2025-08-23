@@ -48,7 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 items-center border-b px-6">
             <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
               <Handshake className="h-6 w-6" />
-              <span>SevaSahayak</span>
+              <span>Neelam Enterprises</span>
             </Link>
           </div>
           <div className="flex-1 overflow-auto py-2 px-4">{navLinks}</div>
@@ -68,7 +68,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                  <SheetTitle>
                   <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                     <Handshake className="h-6 w-6" />
-                    <span>SevaSahayak</span>
+                    <span>Neelam Enterprises</span>
                   </Link>
                  </SheetTitle>
               </SheetHeader>
