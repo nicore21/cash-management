@@ -2,19 +2,7 @@ import { getTransactions } from '@/lib/data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-
-function TransactionTypeBadge({ type }: { type: 'service' | 'withdrawal' | 'deposit' }) {
-    switch (type) {
-        case 'service':
-            return <Badge variant="secondary">Service</Badge>;
-        case 'withdrawal':
-            return <Badge variant="destructive">Withdrawal</Badge>;
-        case 'deposit':
-            return <Badge className="bg-green-500 hover:bg-green-600 text-white">Deposit</Badge>;
-        default:
-            return <Badge variant="outline">Unknown</Badge>;
-    }
-}
+import { IndianRupee } from 'lucide-react';
 
 export default async function TransactionsPage() {
     const transactions = await getTransactions();
@@ -27,30 +15,38 @@ export default async function TransactionsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Date</TableHead>
+                            <TableHead>Service</TableHead>
                             <TableHead>Customer</TableHead>
-                            <TableHead>Service/Transaction</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Charge</TableHead>
+                            <TableHead>Qty</TableHead>
+                            <TableHead className="text-right">Price</TableHead>
+                            <TableHead className="text-right">Cost</TableHead>
+                            <TableHead className="text-right">Fee</TableHead>
+                            <TableHead className="text-right">Profit</TableHead>
+                            <TableHead>Payment</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {transactions.length > 0 ? (
                             transactions.map(tx => (
                                 <TableRow key={tx.id}>
-                                    <TableCell>{format(new Date(tx.createdAt), 'dd MMM yyyy, hh:mm a')}</TableCell>
-                                    <TableCell>{tx.customerName}</TableCell>
-                                    <TableCell className="font-medium">{tx.serviceName}</TableCell>
-                                    <TableCell><TransactionTypeBadge type={tx.type} /></TableCell>
-                                    <TableCell className="text-right font-mono">
-                                        {tx.amount ? `₹${tx.amount.toFixed(2)}` : 'N/A'}
+                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {format(new Date(tx.createdAt), 'dd/MM/yy hh:mm a')}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">₹{tx.chargeAmount.toFixed(2)}</TableCell>
+                                    <TableCell className="font-medium">{tx.serviceName}</TableCell>
+                                    <TableCell>{tx.customerName || 'Walk-in'}</TableCell>
+                                    <TableCell className="text-center">{tx.qty}</TableCell>
+                                    <TableCell className="text-right font-mono">₹{tx.price.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-500">₹{tx.cost.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-500">₹{tx.partnerFee.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">₹{tx.profit.toFixed(2)}</TableCell>
+                                     <TableCell>
+                                        <Badge variant="outline">{tx.paymentMode}</Badge>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center h-24">No transactions found.</TableCell>
+                                <TableCell colSpan={9} className="text-center h-24">No transactions found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
