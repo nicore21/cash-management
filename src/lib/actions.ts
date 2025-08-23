@@ -98,10 +98,14 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
             pendingAmount,
             profit,
             status,
-            customerId,
+            customerId: customerId, // This might be undefined, but we will strip it below
             paymentMode,
             notes,
         };
+
+        if (!transactionData.customerId) {
+            delete transactionData.customerId;
+        }
 
         if (isCashService) {
             transactionData.cashTransactionAmount = cashTransactionAmount;
