@@ -12,6 +12,7 @@ export interface Customer {
 export type ServiceCategory = "BANKING" | "G2C" | "PRINT" | "DOC" | "OTHER";
 
 export interface Service {
+  id: string;
   code: string;
   name:string;
   defaultPrice: number; // For services, this is the charge. For cash tx, this is the default fee.
