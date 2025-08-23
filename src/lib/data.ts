@@ -1,4 +1,4 @@
-import type { Customer, Service, ServiceTransaction, ServiceCategory } from './types';
+import type { Customer, Service, ServiceTransaction, CashTransaction } from './types';
 
 // Mock data storage
 let customers: Customer[] = [
@@ -46,7 +46,7 @@ const serviceCatalog: Service[] = [
   { code: 'OTHER', name: 'Other', category: 'OTHER', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
 ];
 
-let transactions: ServiceTransaction[] = [
+let serviceTransactions: ServiceTransaction[] = [
     {
         id: 'txn_1',
         serviceCode: 'AADHAAR_PRINT',
@@ -77,6 +77,28 @@ let transactions: ServiceTransaction[] = [
     },
 ];
 
+let cashTransactions: CashTransaction[] = [
+    {
+        id: 'cash_1',
+        customerName: 'Ramesh Singh',
+        mobileNumber: '7890123456',
+        bankName: 'Axis Bank',
+        amount: 5000,
+        type: 'DEPOSIT',
+        createdAt: new Date(), // Today
+    },
+     {
+        id: 'cash_2',
+        customerName: 'Sita Devi',
+        mobileNumber: '6789012345',
+        bankName: 'ICICI Bank',
+        amount: 2000,
+        type: 'WITHDRAWAL',
+        createdAt: new Date(), // Today
+    }
+];
+
+
 // Data access functions
 export async function getCustomers(): Promise<Customer[]> {
     return customers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -105,7 +127,7 @@ export async function getServiceByCode(code: string): Promise<Service | undefine
 }
 
 export async function getTransactions(): Promise<ServiceTransaction[]> {
-    return transactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return serviceTransactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 export async function addTransaction(transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'>): Promise<ServiceTransaction> {
@@ -121,9 +143,36 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
         serviceName: service.name,
         createdAt: new Date(),
     };
-    transactions.push(newTransaction);
+    serviceTransactions.push(newTransaction);
     return newTransaction;
 }
+
+export async function getCashTransactions(): Promise<CashTransaction[]> {
+    return cashTransactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function addCashTransaction(data: Omit<CashTransaction, 'id' | 'createdAt'>): Promise<CashTransaction> {
+    const newTransaction: CashTransaction = {
+        ...data,
+        id: `cash_${Date.now()}`,
+        createdAt: new Date(),
+    };
+    cashTransactions.push(newTransaction);
+    return newTransaction;
+}
+
+export async function getCashTransactionStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dailyCashTransactions = cashTransactions.filter(t => t.createdAt >= today);
+    const totalDeposit = dailyCashTransactions.filter(t => t.type === 'DEPOSIT').reduce((sum, t) => sum + t.amount, 0);
+    const totalWithdrawal = dailyCashTransactions.filter(t => t.type === 'WITHDRAWAL').reduce((sum, t) => sum + t.amount, 0);
+    const netBalance = totalDeposit - totalWithdrawal;
+
+    return { totalDeposit, totalWithdrawal, netBalance };
+}
+
 
 export async function getDashboardStats() {
     const today = new Date();
@@ -131,19 +180,25 @@ export async function getDashboardStats() {
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const dailyTransactions = transactions.filter(t => t.createdAt >= today);
-    const monthlyTransactions = transactions.filter(t => t.createdAt >= startOfMonth);
+    const dailyServiceTransactions = serviceTransactions.filter(t => t.createdAt >= today);
+    const monthlyServiceTransactions = serviceTransactions.filter(t => t.createdAt >= startOfMonth);
 
-    const dailyProfit = dailyTransactions.reduce((sum, t) => sum + t.profit, 0);
-    const monthlyProfit = monthlyTransactions.reduce((sum, t) => sum + t.profit, 0);
+    const dailyProfit = dailyServiceTransactions.reduce((sum, t) => sum + t.profit, 0);
+    const monthlyProfit = monthlyServiceTransactions.reduce((sum, t) => sum + t.profit, 0);
 
     const totalCustomers = customers.length;
-    const servicesToday = dailyTransactions.length;
+    const servicesToday = dailyServiceTransactions.length;
+    
+    const { totalDeposit, totalWithdrawal, netBalance } = await getCashTransactionStats();
+
 
     return {
         dailyProfit,
         monthlyProfit,
         totalCustomers,
         servicesToday,
+        dailyDeposit: totalDeposit,
+        dailyWithdrawal: totalWithdrawal,
+        dailyNetCash: netBalance,
     };
 }

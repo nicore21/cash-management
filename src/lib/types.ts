@@ -37,3 +37,13 @@ export interface ServiceTransaction {
   customerName?: string; // denormalized
   createdAt: Date;
 }
+
+export interface CashTransaction {
+  id: string;
+  customerName: string;
+  mobileNumber: string;
+  bankName: string;
+  amount: number;
+  type: 'DEPOSIT' | 'WITHDRAWAL';
+  createdAt: Date;
+}

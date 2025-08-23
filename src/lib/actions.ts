@@ -1,8 +1,8 @@
 'use server';
 
 import { z } from 'zod';
-import { addCustomer, addTransaction, getServiceByCode } from './data';
-import type { Customer, ServiceTransaction } from './types';
+import { addCustomer, addTransaction, getServiceByCode, addCashTransaction } from './data';
+import type { Customer, ServiceTransaction, CashTransaction } from './types';
 import { revalidatePath } from 'next/cache';
 
 const CustomerSchema = z.object({
@@ -80,6 +80,35 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
         return { success: true, message: "Transaction logged successfully.", data: newTransaction };
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to log transaction.";
+        return { success: false, message };
+    }
+}
+
+
+const CashTransactionSchema = z.object({
+  customerName: z.string().min(2, "Name must be at least 2 characters."),
+  mobileNumber: z.string().regex(/^\d{10}$/, "Mobile number must be 10 digits."),
+  bankName: z.string().min(2, "Bank name is required."),
+  amount: z.coerce.number().positive("Amount must be a positive number."),
+  type: z.enum(['DEPOSIT', 'WITHDRAWAL']),
+});
+
+
+export async function createCashTransaction(formData: FormData): Promise<{ success: boolean; message: string; data?: CashTransaction }> {
+    const validatedFields = CashTransactionSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        console.error(validatedFields.error.flatten().fieldErrors);
+        return { success: false, message: "Invalid form data." };
+    }
+    
+    try {
+        const newTransaction = await addCashTransaction(validatedFields.data);
+        revalidatePath('/cash-dw');
+        revalidatePath('/');
+        return { success: true, message: "Transaction recorded successfully.", data: newTransaction };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to record transaction.";
         return { success: false, message };
     }
 }
