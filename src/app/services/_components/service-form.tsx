@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -21,11 +20,14 @@ const ServiceTransactionSchema = z.object({
   serviceCode: z.string().min(1, "Please select a service."),
   customerId: z.string().optional(),
   qty: z.coerce.number().int().min(1, "Quantity must be at least 1."),
-  price: z.coerce.number().min(0, "Price must be a non-negative number."),
+  price: z.coerce.number().min(0, "Price/Fee must be a non-negative number."),
   cost: z.coerce.number().min(0, "Cost must be a non-negative number."),
   partnerFee: z.coerce.number().min(0, "Partner fee must be a non-negative number."),
   paymentMode: z.enum(['CASH', 'UPI', 'BANK'], { required_error: 'Payment mode is required.' }),
   notes: z.string().optional(),
+  // New fields for cash transactions
+  cashTransactionAmount: z.coerce.number().optional(),
+  cashTransactionBankName: z.string().optional(),
 });
 
 type ServiceFormValues = z.infer<typeof ServiceTransactionSchema>;
@@ -52,41 +54,46 @@ export default function ServiceForm({ customers, services, selectedService }: Se
       paymentMode: 'CASH',
       notes: '',
       customerId: ANONYMOUS_CUSTOMER_VALUE,
+      cashTransactionAmount: 0,
+      cashTransactionBankName: '',
     },
   });
   
   const formValues = form.watch();
+  const isCashService = useMemo(() => formValues.serviceCode?.startsWith('CASH_'), [formValues.serviceCode]);
 
   const profit = useMemo(() => {
     const { qty, price, cost, partnerFee } = formValues;
-    if (isNaN(qty) || isNaN(price) || isNaN(cost) || isNaN(partnerFee)) return 0;
+    if (isNaN(price)) return 0;
+    if (isCashService) {
+        return price; // For cash services, profit is simply the fee (price)
+    }
+    if (isNaN(qty) || isNaN(cost) || isNaN(partnerFee)) return 0;
     return qty * (price - cost - partnerFee);
-  }, [formValues]);
+  }, [formValues, isCashService]);
+
+  const resetFormFields = (service: Service | null) => {
+    form.reset({
+      ...form.getValues(),
+      serviceCode: service?.code ?? '',
+      price: service?.defaultPrice ?? 0,
+      cost: service?.defaultCost ?? 0,
+      partnerFee: service?.defaultPartnerFee ?? 0,
+      qty: 1,
+      // Reset cash-specific fields
+      cashTransactionAmount: 0,
+      cashTransactionBankName: '',
+    });
+  };
 
   useEffect(() => {
-    if (selectedService) {
-      form.reset({
-        ...form.getValues(),
-        serviceCode: selectedService.code,
-        price: selectedService.defaultPrice,
-        cost: selectedService.defaultCost,
-        partnerFee: selectedService.defaultPartnerFee,
-        qty: 1,
-      });
-    }
+    resetFormFields(selectedService);
   }, [selectedService, form]);
 
   const handleServiceChange = (serviceCode: string) => {
     const service = services.find(s => s.code === serviceCode);
     if (service) {
-         form.reset({
-            ...form.getValues(),
-            serviceCode: service.code,
-            price: service.defaultPrice,
-            cost: service.defaultCost,
-            partnerFee: service.defaultPartnerFee,
-            qty: 1,
-        });
+      resetFormFields(service);
     }
   }
 
@@ -110,12 +117,15 @@ export default function ServiceForm({ customers, services, selectedService }: Se
         title: "Success",
         description: result.message,
       });
+      // Partially reset form, keeping selected service
+      resetFormFields(selectedService);
       form.reset({
-        ...form.getValues(),
-        customerId: ANONYMOUS_CUSTOMER_VALUE,
-        notes: '',
-        qty: 1,
-      });
+          ...form.getValues(),
+          serviceCode: selectedService?.code,
+          customerId: ANONYMOUS_CUSTOMER_VALUE,
+          notes: '',
+      })
+
     } else {
       toast({
         title: "Error",
@@ -128,8 +138,8 @@ export default function ServiceForm({ customers, services, selectedService }: Se
 
   const showPartnerFee = useMemo(() => {
     const service = services.find(s => s.code === formValues.serviceCode);
-    return service?.category === 'BANKING';
-  }, [formValues.serviceCode, services]);
+    return service?.category === 'BANKING' && !isCashService;
+  }, [formValues.serviceCode, services, isCashService]);
 
   return (
     <Form {...form}>
@@ -141,7 +151,7 @@ export default function ServiceForm({ customers, services, selectedService }: Se
           render={({ field }) => (
             <FormItem>
               <FormLabel>Service</FormLabel>
-              <Select onValueChange={(value) => { field.onChange(value); handleServiceChange(value); }} value={field.value}>
+              <Select onValueChange={(value) => { field.onChange(value); handleServiceChange(value); }} value={field.value ?? ''}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a service" />
@@ -163,7 +173,7 @@ export default function ServiceForm({ customers, services, selectedService }: Se
           name="customerId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Customer (Optional)</FormLabel>
+              <FormLabel>Customer {isCashService ? '(Optional)' : '(Optional)'}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value ?? ANONYMOUS_CUSTOMER_VALUE}>
                 <FormControl>
                   <SelectTrigger>
@@ -182,26 +192,40 @@ export default function ServiceForm({ customers, services, selectedService }: Se
           )}
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <FormField
+        {isCashService ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+             <FormField
                 control={form.control}
-                name="qty"
+                name="cashTransactionAmount"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Quantity</FormLabel>
+                    <FormLabel>Transaction Amount</FormLabel>
                     <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" step="0.01" placeholder="Enter transaction amount" {...field} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
                 )}
             />
             <FormField
+                control={form.control}
+                name="cashTransactionBankName"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Bank Name</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., SBI, HDFC" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+             <FormField
                 control={form.control}
                 name="price"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Price (Charge)</FormLabel>
+                    <FormLabel>Charge (Your Fee)</FormLabel>
                     <FormControl>
                         <Input type="number" step="0.01" {...field} />
                     </FormControl>
@@ -209,26 +233,28 @@ export default function ServiceForm({ customers, services, selectedService }: Se
                 </FormItem>
                 )}
             />
-            <FormField
-                control={form.control}
-                name="cost"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Cost</FormLabel>
-                    <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            {showPartnerFee && (
+          </div>
+        ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <FormField
                     control={form.control}
-                    name="partnerFee"
+                    name="qty"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Partner Fee</FormLabel>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                            <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Price (Charge)</FormLabel>
                         <FormControl>
                             <Input type="number" step="0.01" {...field} />
                         </FormControl>
@@ -236,15 +262,43 @@ export default function ServiceForm({ customers, services, selectedService }: Se
                     </FormItem>
                     )}
                 />
-            )}
-        </div>
+                <FormField
+                    control={form.control}
+                    name="cost"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Cost</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {showPartnerFee && (
+                    <FormField
+                        control={form.control}
+                        name="partnerFee"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Partner Fee</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
+            </div>
+        )}
 
         <FormField
           control={form.control}
           name="paymentMode"
           render={({ field }) => (
             <FormItem className="space-y-2">
-              <FormLabel>Payment Mode</FormLabel>
+              <FormLabel>Payment Mode (for Charge)</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}

@@ -11,7 +11,6 @@ import {
   ArrowRightLeft,
   Menu,
   Handshake,
-  Landmark,
 } from 'lucide-react';
 
 const navItems = [
@@ -19,7 +18,6 @@ const navItems = [
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/services', label: 'Services', icon: Briefcase },
   { href: '/transactions', label: 'Transactions', icon: ArrowRightLeft },
-  { href: '/cash-dw', label: 'Cash D/W', icon: Landmark },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -66,7 +64,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
-              <SheetHeader className="border-b p-4">
+               <SheetHeader className="border-b p-4">
                  <SheetTitle>
                   <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
                     <Handshake className="h-6 w-6" />

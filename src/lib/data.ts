@@ -1,4 +1,4 @@
-import type { Customer, Service, ServiceTransaction, CashTransaction } from './types';
+import type { Customer, Service, ServiceTransaction } from './types';
 
 // Mock data storage
 let customers: Customer[] = [
@@ -26,6 +26,10 @@ let customers: Customer[] = [
 
 const now = new Date();
 const serviceCatalog: Service[] = [
+  // New Cash Transaction services
+  { code: 'CASH_DEPOSIT', name: 'Cash Deposit', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
+  { code: 'CASH_WITHDRAWAL', name: 'Cash Withdrawal', category: 'BANKING', defaultPrice: 10, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
+  
   { code: 'AIRTEL_ACCOUNT', name: 'Airtel Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
   { code: 'FINO_ACCOUNT', name: 'Fino Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
   { code: 'KOTAK_ACCOUNT', name: 'Kotak Account', category: 'BANKING', defaultPrice: 0, defaultCost: 0, defaultPartnerFee: 0, active: true, createdAt: now },
@@ -75,28 +79,27 @@ let serviceTransactions: ServiceTransaction[] = [
         customerName: 'Priya Sharma',
         createdAt: new Date(), // Today
     },
-];
-
-let cashTransactions: CashTransaction[] = [
     {
-        id: 'cash_1',
-        customerName: 'Ramesh Singh',
-        mobileNumber: '7890123456',
-        bankName: 'Axis Bank',
-        amount: 5000,
-        type: 'DEPOSIT',
+        id: 'txn_3',
+        serviceCode: 'CASH_DEPOSIT',
+        serviceName: 'Cash Deposit',
+        qty: 1,
+        price: 10, // This is the charge/fee
+        cost: 0,
+        partnerFee: 0,
+        profit: 10,
+        paymentMode: 'CASH',
+        customerId: undefined,
+        customerName: 'Walk-in Customer',
         createdAt: new Date(), // Today
-    },
-     {
-        id: 'cash_2',
-        customerName: 'Sita Devi',
-        mobileNumber: '6789012345',
-        bankName: 'ICICI Bank',
-        amount: 2000,
-        type: 'WITHDRAWAL',
-        createdAt: new Date(), // Today
+        cashTransactionAmount: 5000,
+        cashTransactionType: 'DEPOSIT',
+        cashTransactionBankName: 'State Bank of India',
     }
 ];
+
+// No longer need separate cashTransactions
+// let cashTransactions: CashTransaction[] = [];
 
 
 // Data access functions
@@ -127,6 +130,7 @@ export async function getServiceByCode(code: string): Promise<Service | undefine
 }
 
 export async function getTransactions(): Promise<ServiceTransaction[]> {
+    // This now correctly includes cash transaction fees as part of all transactions
     return serviceTransactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
@@ -139,7 +143,7 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
     const newTransaction: ServiceTransaction = {
         ...transactionData,
         id: `txn_${Date.now()}`,
-        customerName: customer?.name,
+        customerName: customer?.name || (transactionData.serviceCode.startsWith('CASH_') ? 'Walk-in Customer' : undefined),
         serviceName: service.name,
         createdAt: new Date(),
     };
@@ -147,31 +151,16 @@ export async function addTransaction(transactionData: Omit<ServiceTransaction, '
     return newTransaction;
 }
 
-export async function getCashTransactions(): Promise<CashTransaction[]> {
-    return cashTransactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-}
-
-export async function addCashTransaction(data: Omit<CashTransaction, 'id' | 'createdAt'>): Promise<CashTransaction> {
-    const newTransaction: CashTransaction = {
-        ...data,
-        id: `cash_${Date.now()}`,
-        createdAt: new Date(),
-    };
-    cashTransactions.push(newTransaction);
-    return newTransaction;
-}
-
-export async function getCashTransactionStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const dailyCashTransactions = cashTransactions.filter(t => t.createdAt >= today);
-    const totalDeposit = dailyCashTransactions.filter(t => t.type === 'DEPOSIT').reduce((sum, t) => sum + t.amount, 0);
-    const totalWithdrawal = dailyCashTransactions.filter(t => t.type === 'WITHDRAWAL').reduce((sum, t) => sum + t.amount, 0);
-    const netBalance = totalDeposit - totalWithdrawal;
-
-    return { totalDeposit, totalWithdrawal, netBalance };
-}
+// No longer needed as separate functions
+// export async function getCashTransactions(): Promise<CashTransaction[]> {
+//     return [];
+// }
+// export async function addCashTransaction(data: Omit<CashTransaction, 'id' | 'createdAt'>): Promise<CashTransaction> {
+//     return {} as any;
+// }
+// export async function getCashTransactionStats() {
+//     return { totalDeposit: 0, totalWithdrawal: 0, netBalance: 0 };
+// }
 
 
 export async function getDashboardStats() {
@@ -189,7 +178,15 @@ export async function getDashboardStats() {
     const totalCustomers = customers.length;
     const servicesToday = dailyServiceTransactions.length;
     
-    const { totalDeposit, totalWithdrawal, netBalance } = await getCashTransactionStats();
+    // Calculate cash flow from the main transaction list
+    const dailyCashTransactions = dailyServiceTransactions.filter(t => t.cashTransactionAmount && t.cashTransactionType);
+    const dailyDeposit = dailyCashTransactions
+        .filter(t => t.cashTransactionType === 'DEPOSIT')
+        .reduce((sum, t) => sum + (t.cashTransactionAmount || 0), 0);
+    const dailyWithdrawal = dailyCashTransactions
+        .filter(t => t.cashTransactionType === 'WITHDRAWAL')
+        .reduce((sum, t) => sum + (t.cashTransactionAmount || 0), 0);
+    const dailyNetCash = dailyDeposit - dailyWithdrawal;
 
 
     return {
@@ -197,8 +194,8 @@ export async function getDashboardStats() {
         monthlyProfit,
         totalCustomers,
         servicesToday,
-        dailyDeposit: totalDeposit,
-        dailyWithdrawal: totalWithdrawal,
-        dailyNetCash: netBalance,
+        dailyDeposit,
+        dailyWithdrawal,
+        dailyNetCash,
     };
 }

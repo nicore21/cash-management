@@ -1,8 +1,8 @@
 'use server';
 
 import { z } from 'zod';
-import { addCustomer, addTransaction, getServiceByCode, addCashTransaction } from './data';
-import type { Customer, ServiceTransaction, CashTransaction } from './types';
+import { addCustomer, addTransaction, getServiceByCode } from './data';
+import type { Customer, ServiceTransaction } from './types';
 import { revalidatePath } from 'next/cache';
 
 const CustomerSchema = z.object({
@@ -35,11 +35,14 @@ const ServiceTransactionSchema = z.object({
   serviceCode: z.string().min(1, "Service is required."),
   customerId: z.string().optional(),
   qty: z.coerce.number().int().min(1, "Quantity must be at least 1."),
-  price: z.coerce.number().min(0, "Price must be non-negative."),
+  price: z.coerce.number().min(0, "Price/Fee must be non-negative."),
   cost: z.coerce.number().min(0, "Cost must be non-negative."),
   partnerFee: z.coerce.number().min(0, "Partner fee must be non-negative."),
   paymentMode: z.enum(['CASH', 'UPI', 'BANK']),
   notes: z.string().optional(),
+  // Fields for cash transactions
+  cashTransactionAmount: z.coerce.number().optional(),
+  cashTransactionBankName: z.string().optional(),
 });
 
 export async function createServiceTransaction(formData: FormData): Promise<{ success: boolean; message: string; data?: ServiceTransaction }> {
@@ -51,27 +54,43 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
         return { success: false, message: "Invalid form data." };
     }
     
-    const { serviceCode, qty, price, cost, partnerFee, customerId, paymentMode, notes } = validatedFields.data;
+    const { serviceCode, qty, price, cost, partnerFee, customerId, paymentMode, notes, cashTransactionAmount, cashTransactionBankName } = validatedFields.data;
 
     const service = await getServiceByCode(serviceCode);
     if (!service) {
         return { success: false, message: "Invalid service selected." };
     }
 
-    try {
-        const profit = qty * (price - cost - partnerFee);
+    const isCashService = service.code.startsWith('CASH_');
+    if (isCashService && (!cashTransactionAmount || cashTransactionAmount <= 0)) {
+        return { success: false, message: "Please enter a valid transaction amount." };
+    }
+     if (isCashService && (!cashTransactionBankName || cashTransactionBankName.length < 2)) {
+        return { success: false, message: "Please enter a valid bank name." };
+    }
 
-        const transactionData = {
+
+    try {
+        // For cash services, profit is the fee (price). For other services, it's the standard calculation.
+        const profit = isCashService ? price : qty * (price - cost - partnerFee);
+
+        const transactionData: Omit<ServiceTransaction, 'id' | 'createdAt' | 'customerName' | 'serviceName'> = {
             serviceCode,
-            qty,
-            price,
-            cost,
-            partnerFee,
+            qty: isCashService ? 1 : qty,
+            price, // This is the fee for cash tx
+            cost: isCashService ? 0 : cost,
+            partnerFee: isCashService ? 0 : partnerFee,
             profit,
             customerId,
             paymentMode,
             notes,
         };
+
+        if (isCashService) {
+            transactionData.cashTransactionAmount = cashTransactionAmount;
+            transactionData.cashTransactionType = service.code === 'CASH_DEPOSIT' ? 'DEPOSIT' : 'WITHDRAWAL';
+            transactionData.cashTransactionBankName = cashTransactionBankName;
+        }
 
         const newTransaction = await addTransaction(transactionData);
         revalidatePath('/services');
@@ -84,31 +103,6 @@ export async function createServiceTransaction(formData: FormData): Promise<{ su
     }
 }
 
-
-const CashTransactionSchema = z.object({
-  customerName: z.string().min(2, "Name must be at least 2 characters."),
-  mobileNumber: z.string().regex(/^\d{10}$/, "Mobile number must be 10 digits."),
-  bankName: z.string().min(2, "Bank name is required."),
-  amount: z.coerce.number().positive("Amount must be a positive number."),
-  type: z.enum(['DEPOSIT', 'WITHDRAWAL']),
-});
-
-
-export async function createCashTransaction(formData: FormData): Promise<{ success: boolean; message: string; data?: CashTransaction }> {
-    const validatedFields = CashTransactionSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        console.error(validatedFields.error.flatten().fieldErrors);
-        return { success: false, message: "Invalid form data." };
-    }
-    
-    try {
-        const newTransaction = await addCashTransaction(validatedFields.data);
-        revalidatePath('/cash-dw');
-        revalidatePath('/');
-        return { success: true, message: "Transaction recorded successfully.", data: newTransaction };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to record transaction.";
-        return { success: false, message };
-    }
-}
+// No longer need createCashTransaction as it's merged
+// const CashTransactionSchema = z.object({ ... });
+// export async function createCashTransaction(...) { ... }

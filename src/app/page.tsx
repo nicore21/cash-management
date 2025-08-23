@@ -16,7 +16,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="text-3xl font-bold text-green-900">₹{stats.dailyProfit.toFixed(2)}</div>
-                <p className="text-xs text-green-700">Total service earnings for today</p>
+                <p className="text-xs text-green-700">Total service and transaction fee earnings for today</p>
                 </CardContent>
             </Card>
             <Card className="bg-green-100 border-green-200 shadow-sm hover:shadow-md transition-shadow">
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="text-3xl font-bold text-green-900">₹{stats.monthlyProfit.toFixed(2)}</div>
-                <p className="text-xs text-green-700">Total service earnings this month</p>
+                <p className="text-xs text-green-700">Total service and transaction fee earnings this month</p>
                 </CardContent>
             </Card>
             <Card className="bg-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="text-3xl font-bold text-blue-900">+{stats.servicesToday}</div>
-                <p className="text-xs text-blue-700">Services provided today</p>
+                <p className="text-xs text-blue-700">Services & transactions today</p>
                 </CardContent>
             </Card>
             <Card className="bg-orange-100 border-orange-200 shadow-sm hover:shadow-md transition-shadow">
