@@ -12,7 +12,11 @@ import {
   Menu,
   Handshake,
   Clock,
+  LogOut,
 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,6 +28,12 @@ const navItems = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   const navLinks = (
     <nav className="flex flex-col gap-2">
@@ -54,6 +64,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="flex-1 overflow-auto py-2 px-4">{navLinks}</div>
+          <div className="mt-auto p-4 border-t">
+              <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+              </Button>
+          </div>
         </div>
       </div>
       <div className="flex flex-col">
@@ -65,7 +81,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0">
+            <SheetContent side="left" className="p-0 flex flex-col">
                <SheetHeader className="border-b p-4">
                  <SheetTitle>
                   <Link href="/" className="flex items-center gap-2 font-semibold text-primary">
@@ -74,7 +90,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   </Link>
                  </SheetTitle>
               </SheetHeader>
-              <div className="py-2 px-4">{navLinks}</div>
+              <div className="py-2 px-4 flex-1">{navLinks}</div>
+              <div className="mt-auto p-4 border-t">
+                 <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                  </Button>
+              </div>
             </SheetContent>
           </Sheet>
           <div className="flex-1">
